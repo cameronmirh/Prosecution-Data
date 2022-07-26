@@ -1,0 +1,252 @@
+---
+title: "A County Prosecutor’s Case Management System from One Year Analysis"
+author: "Cameron Mirhossaini"
+date: "July 25th, 2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#install.packages("ggplot2")
+library("ggplot2")
+
+#install.packages("tidyr")
+library("tidyr")
+
+#install.packages("readxl")
+library("readxl")
+
+library(RColorBrewer)
+```
+
+
+```{r, include=FALSE}
+
+#####Read Data#####
+test.cases <- read_excel("TestCases.xlsx")
+test.persons <-read_excel("TestPerson.xlsx")
+data <- merge(test.cases, test.persons, by="CaseNum")
+
+#####Recreate Binaries#####
+data[is.na(data)] <- 0
+data[data == "Y"] <- 1
+
+#####Convert Data to Factor Levels#####
+data$Charge <- as.factor(data$Charge)
+data$Severity <- as.factor(data$Severity)
+data$Race <- as.factor(data$Race)
+data$Gender <- as.factor(data$Gender)
+data$PubDef <- as.factor(data$PubDef)
+data$Traffic <- as.factor(data$Traffic)
+data$History <- as.factor(data$History)
+
+#####Global Variables#####
+#Population Variables
+N_WHITE <- 98000
+N_BLACK <- 41000
+N_LATINX <- 46000
+N_POP <- N_WHITE + N_BLACK + N_LATINX
+
+#Sample Variables
+W_CASES <- length(which(data$Race == "W"))
+B_CASES <- length(which(data$Race == "B"))
+L_CASES <- length(which(data$Race == "H"))
+
+N_CASES <- 1388 - (length(which(data$Race == "A" | data$Race =="ME" | data$Race =="U" | data$Race =="0")))
+
+data_latinx <-subset(data, Race == "H", select = CaseNum:Gender)
+data_white <-subset(data, Race == "W", select = CaseNum:Gender)
+data_black <-subset(data, Race == "B", select = CaseNum:Gender)
+
+```
+
+\newpage
+```{r, include=FALSE}
+coul <- brewer.pal(3, "Set2")
+#Graph 1: Number of Cases per 10,000 by Race
+w.prop <- W_CASES / N_WHITE
+h.prop <- L_CASES / N_LATINX
+b.prop <- B_CASES / N_BLACK
+
+prop.per.race <-c(round(w.prop * 10^4,0), round(h.prop*10^4,0),round(b.prop*10^4,0))
+```
+
+
+```{r}
+#1a
+barp <- barplot(prop.per.race, 
+        names.arg = c("White", "Latinx", "Black"),
+        col = coul,
+        xlab = "Race",
+        main = "Number of Cases per 10,000 by Race")
+text(barp, prop.per.race - 5, labels = prop.per.race )
+```
+Graph 1: Number of prosecution cases of a race subset compared to the general population of that race. For example, the first bar explains that for every 10,000 white people in the general population, 64 of them will have a prosecutional case against them.
+
+
+\newpage
+```{r, include=FALSE}
+#Graph 2: Proportion of Cases vs Population by Race
+Race <- c("White", "Black", "Latinx")
+per_pop <- c(N_WHITE/N_POP, N_BLACK/N_POP, N_LATINX/N_POP)
+per_cases <- c(W_CASES/N_CASES,B_CASES/N_CASES, L_CASES/N_CASES)
+
+db_data <- as.matrix(data.frame(per_pop, per_cases))
+row.names(db_data) <- Race
+colnames(db_data) <- c("Population Percentage", "Case Percentage")
+```
+
+```{r}
+#1a
+barp2 <- barplot(height = t(db_data), 
+        beside = T,
+        xlab = "Race",
+        col = c("#eb8060", "#b9e38d"),
+        legend.text = rownames(t(db_data)),
+        main = "Proportion of Cases vs Population by Race",
+        args.legend = list(x = "topright",
+                           inset = c(- 0.08, 0)))
+text(barp2, t(round(db_data,2)) - .02, labels = t(round(db_data,2)))
+
+```
+Graph 2: Comparison between population frequency and arrest frequency by race. For example, even though white people make 53% of the general population, they make up 46% of prosecutional cases.
+
+
+\newpage
+```{r, include=FALSE}
+#Graph 3: Proportion of PD, Traffic, History by Race
+coul <- brewer.pal(3, "Set3")
+pd_rates <- c(length(which(data_white$PubDef == "1"))/W_CASES,length(which(data_black$PubDef == "1"))/B_CASES, length(which(data_latinx$PubDef == "1"))/L_CASES)
+t_rates <- c(length(which(data_white$Traffic == "1"))/W_CASES,length(which(data_black$Traffic == "1"))/B_CASES, length(which(data_latinx$Traffic == "1"))/L_CASES)
+h_rates <- c(length(which(data_white$History == "1"))/W_CASES,length(which(data_black$History == "1"))/B_CASES, length(which(data_latinx$History == "1"))/L_CASES)
+
+d_3 <- t(as.matrix(data.frame(pd_rates, t_rates, h_rates)))
+colnames(d_3) <- c("White", "Black", "Latinx")
+rownames(d_3) <- c("Public Defender", "Traffic-Related", "Previous History")
+```
+
+```{r}
+#1a
+barp3 <- barplot(height = t(d_3), 
+        beside = T,
+        col = coul,
+        legend.text = rownames(t(d_3)),
+        main = "Additional Prosecutional Rates by Race",
+        args.legend = list(x = "topright",
+                           inset = c(- 0.08, 0)))
+text(barp3, round(t(d_3),2) - .02, labels = round(t(d_3),2))
+```
+Graph 3: Of all the cases disaggregated by race, the proportion of them being represented by a public defender, of them being traffic-related, and of them having prior arrests or convictions. For example, of all Black people prosecuted, 80% of them have been defended by a PD. Of all Latinx people prosecuted, 22% of their cases have been traffic-related.
+
+\newpage
+```{r, include=FALSE}
+#Graph 4: Arrest Severity per 10,000 by Race
+# Number of arrests / general, disaggregated population
+felony_rates <- c(length(which(data_white$Severity== "F"))/N_WHITE,length(which(data_black$Severity== "F"))/N_BLACK,length(which(data_latinx$Severity== "F"))/N_LATINX)
+
+mis_rates <- c(length(which(data_white$Severity== "M"))/N_WHITE,length(which(data_black$Severity== "M"))/N_BLACK,length(which(data_latinx$Severity== "M"))/N_LATINX)
+
+d_4 <- round(as.matrix(data.frame(felony_rates, mis_rates)) * 10^4,0)
+rownames(d_4) <- c("White", "Black", "Latinx")
+colnames(d_4) <- c("Felons per 10,000", "Misdemeanors per 10,000")
+```
+
+```{r}
+#1b
+barp4 <- barplot(height = d_4, 
+        beside = T,
+        col = coul,
+        legend.text = rownames(d_4),
+        main = "Arrest Severity per 10,000 by Race",
+        args.legend = list(x = "topright",
+                           inset = c(- 0.08, 0)))
+text(barp4, d_4 - 1, labels = d_4)
+
+```
+Graph 4: Each bar tells us the frequency of arrests compared to the general, disaggregated population, grouped by felonies and misdemeanors. For example, the first bar tells us that per 10,000 white people in the general population, 60 of them will have a felony case against them.
+
+\newpage
+```{r, include=FALSE}
+#Graph 5: Prosecution of Felonies, Disaggregated by Race and Gender
+#Assume 50/50 M/F distribution in general disaggregated population
+
+male_rates <- c(length(which(data_white$Severity=="F" & data_white$Gender=="M")) / (N_WHITE/2),
+                length(which(data_black$Severity=="F" & data_black$Gender=="M")) / (N_BLACK/2),
+                length(which(data_latinx$Severity=="F" & data_latinx$Gender=="M")) / (N_LATINX/2))
+
+female_rates <- c(length(which(data_white$Severity=="F" & data_white$Gender=="F")) / (N_WHITE/2),
+                length(which(data_black$Severity=="F" & data_black$Gender=="F")) / (N_BLACK/2),
+                length(which(data_latinx$Severity=="F" & data_latinx$Gender=="F")) / (N_LATINX/2))
+
+d_5 <- round(as.matrix(data.frame(male_rates, female_rates)) * 10^4,0)
+rownames(d_5) <- c("White", "Black", "Latinx")
+colnames(d_5) <- c("Male Rates", "Female Rates")
+```
+
+```{r}
+#1c
+coul <- brewer.pal(3, "Accent")
+barp5 <- barplot(height = d_5, 
+        beside = T,
+        col = coul,
+        legend.text = rownames(d_5),
+        main = "Felony Cases per 10,000 by Gender",
+        args.legend = list(x = "topright",
+                           inset = c(- 0.08, 0)))
+text(barp5, d_5 - 1, labels = d_5)
+
+```
+Graph 5: Each bar depicts the number of prosecutions against [Race,Gender] subset per 10,000
+people of [Race,Gender] subset in the general population. For example, the first purple bar tells us that per 10,000 black men in the general population, 210 of them will have a felony case against them.
+
+\newpage
+```{r}
+par(mfrow=c(1,3))
+par(mar=c(20,4,4,4))
+barplot(summary(data_white$Charge)[1:5], 
+        cex.names = 1,
+        main = "Top 5 Charges White",
+        las = 2,
+        col = brewer.pal(5, "Blues"))
+
+barplot(summary(data_black$Charge)[1:5], 
+        cex.names = 1,
+        main = "Top 5 Charges Black",
+        las = 2,
+        col = brewer.pal(5, "Purples"))
+ 
+barplot(summary(data_latinx$Charge)[1:5], 
+        cex.names = 1,
+        main = "Top 5 Charges Latinx",
+        col = brewer.pal(5, "Greens"),
+        las = 2,
+        xpd = F)
+
+```
+\newpage
+2: 
+We can see statistically significant disparities across many different data visualizations. Starting with Graph 1 on page two, we see that Black people are twice as likely to be prosecuted compared to white people: for every 10,000 Black people, 137 of them will be prosecuted, whereas for every 10,000 white person, 64 of them will be prosecuted. The same story is told using different graphics on page 3, where we see that Black people make up almost twice of their general population share in the prosecution system, whereas white people are less represented in the prosecution system than they are in the general public.
+
+From Graph 3, we see that Black and Latinx people are much more likely to utilize the federal government's public defense, which may more indicate income patterns--to glean more from this outcome, we could look for the a case's likelihood of being overturned in relationship to whether they had a PD or personally-hired lawyer, which may allude to another systemic inequality. 
+In the second grouping of columns, we see that Latinx people are more likely to be incorporated into the system, which often begins a rocky relationship with the law--including fines and institutional interaction that may exacerbate crime and lead to more involvement in the penal system. 
+Finally, in the third group, we see that Black people are more likely to have previous history of prosecution,  indicating the possibility of racial bias within the penal system.
+
+When we look at Graph 4 on page five, we see that for every 10,000 Black people, 122 of them will have felony charges against them, whereas only 60 white people will have a felony charge. Black people are twice as likely to be charged with felonies, which lead to systemic disenfranchisement, and in many states, professional death. Since, in this graph, similar to Graph 1, rates are normalized to offset disproportional population make-up, we can see the far higher rate of Black felons and misdemeanors than white ones.
+
+Looking at graph 5, we see that the Black male is most likely to have a felony against him, almost three times that of the white male. There does not seem to be a statistical significance between the differences between white and Black females.
+
+On page seven, we see that the top charge that incorporates Black and Latinx folks into the penal system is "Eluding Police Officer." This indicates a rather recursive and tragic effect of the penal system--historically violent relationships with the police have made Black and Latinx folks fear the presence of police, and the performance of this fear--in the manner of "eluding"--brings these very people into the penal system. In effect, Black and Latinx folks are being punished for their relationship with the police. The second top charge for both Black and Latinx folks is drug-related. 
+
+Here we can see consistent bias against Black people in relationship to white and Latinx people--they are charged more severily and in higher numbers across the board.
+
+I am skeptical of the numbers regarding the Latinx population, who, according to the data, proportionally contribute even less to the prosecution cases than do white people. I propose some reasons for this: for one, the racial category of Latinx (like most racial categories, but especially this one) is fraught and ill-contrived. Though all race science is eugenic, Latinx  barely ascribes to race science as Black people are Latinx, white people are Latinx, and indigenous people are Latinx. It depends on what we are looking for specifically--if we would like to understand the effects of skin color, or of income, on prosecution, we should look for that data specifically rather than inferring it from the category of race. It may be interesting to see what police believe a suspect to be. This, for many reasons, would be difficult data to collect, so it may be satisfactory to inquire the ethnicity of those prosecuted. For example, Haitians are predominantly Black, though are also Latinx. 
+One research question I am interested in is how the age/wear-and-tear of a car relates to traffic-related arrests--this may indicate to us how both race and class contribute to arrests.
+I am also interested in fine amounts/sentencing times, or otherwise continous variables that would allow us to perform either regression analyses and look into ANOVA tables to assess the statistical significance of race using t- and F-tests.
+
+\newpage
+3. Ultimately, to assess the validity of these findings it would be nice to perform some kind of statistical significance test, like a Chi-Squared. Otherwise, we could understand these outcomes to be valid due to the history of the policing system and the rudimentary logic of the penal system. Financial and political institutions (e.g. prisons) have always benefited from the disenfranchisement of Black people, and the systemic laws that maintain the well-being of the police will also feed this process. Additionally, from almost every application of restorative justice--within the classroom, family, relationships--we know punishment is not an effective incentive to deter unfavorable behavior. 
+
+A secondary analysis could be done after removing all drug-related charges from the data set and re-looking at the previous 5-6 graphs. Like mentioned above, continuous random variables like sentencing and fines would also be interesting to look at.
+
+
