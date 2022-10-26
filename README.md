@@ -6,3 +6,7 @@ Take a look at the:
 - Code
 - Data
 - Final Report
+
+<p align="center">
+<img width="849" alt="Screen Shot 2022-10-26 at 1 25 37 PM" src="https://user-images.githubusercontent.com/53825687/198118572-8ede16be-b29c-4301-9232-060ded702ebb.png">
+  </p>
