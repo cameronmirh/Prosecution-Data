@@ -3,7 +3,7 @@ This project strives to vizualize disparate impact within Broward County's prose
 felon type, gender, charge, and other features. The statistics used are  simple yet powerful properties of Exploratory Data Analysis in order to discover non-causitive trends. 
 
 Take a look at the:
-- Data Head [I]() & [II]()
+- Data (raw files linked in repository)
 - [Code](https://github.com/cameronmirh/Prosecution-Data/blob/main/vera_script.Rmd)
 - [Final Report](https://drive.google.com/file/d/10eD51lH1YVjbjE3nW0UYEr25qxtCPv85/view?usp=sharing)
 
